@@ -9,12 +9,14 @@
     <license>TODO</license>
 
     <!-- general dependencies -->
-    <depend>ament_index_cpp</depend>
     <depend>can_msgs</depend>
-    <depend>nturt_can_config</depend>
+    <depend>geometry_msgs</depend>
+    <depend>nturt_can_config</depend>    
+    <depend>nturt_ros_interface</depend>
     <depend>rclcpp</depend>
     <depend>rclcpp_components</depend>
     <depend>sdl2</depend>
+    <depend>sensor_msgs</depend>
 
     <!-- build dependencies -->
     <buildtool_depend>ament_cmake</buildtool_depend>

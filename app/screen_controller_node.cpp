@@ -13,8 +13,8 @@ int main(int argc, char **argv) {
   rclcpp::executors::StaticSingleThreadedExecutor executor;
   rclcpp::NodeOptions options;
 
-  rclcpp::Node::SharedPtr screen_controller_node =
-      std::make_shared<ScreenController>(options);
+  auto screen_controller_node = std::make_shared<ScreenController>(options);
+  screen_controller_node->register_can_callback();
 
   executor.add_node(screen_controller_node);
   executor.spin();

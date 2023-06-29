@@ -82,6 +82,9 @@ class Screen {
   /// @brief ImGui font for steer angle.
   ImFont *steer_angle_font_;
 
+  /// @brief ImGui font for error/warning message.
+  ImFont *error_warning_message_font_;
+
   /// @brief Shared pointer to screen data.
   std::shared_ptr<ScreenData> data_;
 };

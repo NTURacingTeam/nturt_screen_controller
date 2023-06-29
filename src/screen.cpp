@@ -2,9 +2,12 @@
 
 // stl include
 #include <cmath>
-#include <iostream>
 #include <memory>
 #include <mutex>
+#include <string>
+
+// ros2 include
+#include <ament_index_cpp/get_package_share_directory.hpp>
 
 #ifdef BACKEND_GLFW
 // glfw include
@@ -114,18 +117,52 @@ int Screen::init() {
   ImGui_ImplOpenGL2_Init();
 
   // load fonts
-  speed_font_ =
-      io.Fonts->AddFontFromFileTTF("../fonts/HelveticaNeue.ttc", 160.0f);
-  speed_unit_font_ =
-      io.Fonts->AddFontFromFileTTF("../fonts/Cousine-Regular.ttf", 25.0f);
-  battery_font_ =
-      io.Fonts->AddFontFromFileTTF("../fonts/Cousine-Regular.ttf", 50.0f);
-  sensor_data_font_ =
-      io.Fonts->AddFontFromFileTTF("../fonts/Cousine-Regular.ttf", 15.0f);
-  steer_angle_font_ =
-      io.Fonts->AddFontFromFileTTF("../fonts/Karla-Regular.ttf", 30.0f);
+  std::string font_path =
+      ament_index_cpp::get_package_share_directory("nturt_screen_controller") +
+      "/fonts/";
+  speed_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "HelveticaNeue.ttc").c_str(), 160.0f);
+  speed_unit_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "Cousine-Regular.ttf").c_str(), 25.0f);
+  battery_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "Cousine-Regular.ttf").c_str(), 50.0f);
+  sensor_data_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "Cousine-Regular.ttf").c_str(), 15.0f);
+  steer_angle_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "Karla-Regular.ttf").c_str(), 30.0f);
+  error_warning_message_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "DroidSans.ttf").c_str(), 15.0f);
 
   return 0;
+}
+
+// tire temperature color function
+void get_tire_temperature_color(float temperature, ImVec2 pos1, ImVec2 pos2) {
+  if (temperature >= 30 && temperature < 40) {
+    // grey
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pos1, pos2, IM_COL32(128, 128, 128, 200), 5.0f);
+  } else if (temperature >= 40 && temperature < 50) {
+    // blue
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pos1, pos2, IM_COL32(122, 184, 204, 200), 5.0f);
+  } else if (temperature >= 50 && temperature < 60) {
+    // green
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pos1, pos2, IM_COL32(103, 207, 83, 200), 5.0f);
+  } else if (temperature >= 60 && temperature < 70) {
+    // yellow
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        pos1, pos2, IM_COL32(242, 209, 22, 200), 5.0f);
+  } else if (temperature < 30) {
+    ImGui::SetCursorPosX(pos1.x + 7);
+    ImGui::SetCursorPosY(pos1.y + 7);
+    ImGui::Text("L");
+  } else {
+    // red
+    ImGui::GetWindowDrawList()->AddRectFilled(pos1, pos2,
+                                              IM_COL32(235, 80, 33, 200), 5.0f);
+  }
 }
 
 void Screen::mainloop() {
@@ -175,10 +212,10 @@ void Screen::mainloop() {
 
     // background
     ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(800, 480),
-                                              IM_COL32(68, 144, 196, 75));
+                                              IM_COL32(107, 113, 115, 150));
 
     // draw screen
-    if (!data_->checkmode) {
+    if (!data_->show_sensor_data) {
       display_driver_information();
     } else {
       display_sensor_data();
@@ -252,10 +289,71 @@ void Screen::cleanup() {
 }
 
 void Screen::display_driver_information() {
-  std::lock_guard<std::mutex> lock(data_->data_mutex);
+  std::lock_guard<std::mutex> lock(data_->mutex);
+
+  ImGui::PushFont(error_warning_message_font_);
+  // variables for error/warning massage
+  bool error_flag = false;
+  bool warning_flag = false;
+  bool error_count[4] = {false};
+  bool warning_count[4] = {false};
+
+  // error/warning massage
+  for (int i = 0; i < 4; i++) {
+    if (data_->error_code[i]) {
+      error_flag = true;
+      error_count[i] = true;
+      ImGui::SetCursorPos(ImVec2(25, 120));
+      ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Error");
+    }
+    if (data_->error_mask[i]) {
+      warning_flag = true;
+      warning_count[i] = true;
+      ImGui::SetCursorPos(ImVec2(60, 120));
+      ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Warning");
+    }
+  }
+
+  // error message
+  if (error_count[0]) {
+    ImGui::SetCursorPos(ImVec2(25, 140));
+    ImGui::Text("Front_box");
+  }
+  if (error_count[1]) {
+    ImGui::SetCursorPos(ImVec2(25, 152));
+    ImGui::Text("Rear_box");
+  }
+  if (error_count[2]) {
+    ImGui::SetCursorPos(ImVec2(25, 164));
+    ImGui::Text("Invterter_post");
+  }
+  if (error_count[3]) {
+    ImGui::SetCursorPos(ImVec2(25, 176));
+    ImGui::Text("Invterter_run");
+  }
+
+  // warning message
+  if (warning_count[0]) {
+    ImGui::SetCursorPos(ImVec2(25, 140));
+    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Front_box");
+  }
+  if (warning_count[1]) {
+    ImGui::SetCursorPos(ImVec2(25, 152));
+    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Rear_box");
+  }
+  if (warning_count[2]) {
+    ImGui::SetCursorPos(ImVec2(25, 164));
+    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Invterter_post");
+  }
+  if (warning_count[3]) {
+    ImGui::SetCursorPos(ImVec2(25, 176));
+    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Invterter_run");
+  }
+
+  ImGui::PopFont();
 
   // warning
-  if (data_->error_code[0] != 0) {
+  if (warning_flag) {
     ImVec2 p = ImGui::GetWindowPos();
     ImVec2 a = ImVec2(p.x + 25, p.y + 25);
     ImVec2 b = ImVec2(p.x + 85, p.y + 85);
@@ -266,7 +364,7 @@ void Screen::display_driver_information() {
   }
 
   // error
-  if (data_->error_code[0] != 0) {
+  if (error_flag) {
     ImVec2 a = ImVec2(111 + 4, 91);
     ImVec2 b = ImVec2(189 - 4, 91);
     ImVec2 c = ImVec2(150, 25);
@@ -275,25 +373,26 @@ void Screen::display_driver_information() {
   }
 
   // battery life
-  if (data_->battery_life > 75) {
+  double battery_life_percentage = data_->battery_life * 100.0;
+  if (battery_life_percentage > 75) {
     // green battery
     ImGui::GetWindowDrawList()->AddRectFilled(
-        ImVec2(762, 86), ImVec2(762 - data_->battery_life * 1.52, 28),
+        ImVec2(762, 86), ImVec2(762 - battery_life_percentage * 1.52, 28),
         IM_COL32(0, 255, 0, 255));
-  } else if (data_->battery_life > 50) {
+  } else if (battery_life_percentage > 50) {
     // yellow battery
     ImGui::GetWindowDrawList()->AddRectFilled(
-        ImVec2(762, 28), ImVec2(762 - data_->battery_life * 1.52, 86),
+        ImVec2(762, 28), ImVec2(762 - battery_life_percentage * 1.52, 86),
         IM_COL32(255, 255, 0, 255));
-  } else if (data_->battery_life > 25) {
+  } else if (battery_life_percentage > 25) {
     // orange battery
     ImGui::GetWindowDrawList()->AddRectFilled(
-        ImVec2(762, 28), ImVec2(762 - data_->battery_life * 1.52, 86),
+        ImVec2(762, 28), ImVec2(762 - battery_life_percentage * 1.52, 86),
         IM_COL32(255, 165, 0, 255));
   } else {
     // red battery
     ImGui::GetWindowDrawList()->AddRectFilled(
-        ImVec2(762, 28), ImVec2(762 - data_->battery_life * 1.52, 86),
+        ImVec2(762, 28), ImVec2(762 - battery_life_percentage * 1.52, 86),
         IM_COL32(255, 0, 0, 255));
   }
 
@@ -307,7 +406,7 @@ void Screen::display_driver_information() {
   ImGui::SetCursorPos(ImVec2(650, 35));
   ImGui::PushFont(battery_font_);
   ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
-  ImGui::Text("%.0f%%", data_->battery_life);
+  ImGui::Text("%.0f%%", battery_life_percentage);
   ImGui::PopStyleColor();
   ImGui::PopFont();
 
@@ -320,7 +419,7 @@ void Screen::display_driver_information() {
       IM_COL32(0, 0, 0, 255));
   ImGui::GetWindowDrawList()->AddRectFilled(
       ImVec2(ImGui::GetWindowPos().x + 5 + 30,
-             ImGui::GetWindowPos().y + 217 - data_->brake + 240),
+             ImGui::GetWindowPos().y + 217 - 200 * data_->brake + 240),
       ImVec2(ImGui::GetWindowPos().x + 35 + 30,
              ImGui::GetWindowPos().y + 217 + 240),
       IM_COL32(192, 0, 0, 255));
@@ -334,7 +433,7 @@ void Screen::display_driver_information() {
       IM_COL32(0, 0, 0, 255));
   ImGui::GetWindowDrawList()->AddRectFilled(
       ImVec2(ImGui::GetWindowPos().x + 5 + 30 + 50,
-             ImGui::GetWindowPos().y + 217 - data_->accelerator + 240),
+             ImGui::GetWindowPos().y + 217 - 200 * data_->accelerator + 240),
       ImVec2(ImGui::GetWindowPos().x + 35 + 30 + 50,
              ImGui::GetWindowPos().y + 217 + 240),
       IM_COL32(0, 176, 240, 255));
@@ -376,7 +475,7 @@ void Screen::display_driver_information() {
                         370 + 238 * sin(158.5 * 3.1415926f / 180.0f + temp));
     // draw the line
     ImGui::GetWindowDrawList()->AddLine(start, end, ImColor(255, 0, 0), 1.0f);
-    temp += 0.01f;
+    temp += 0.001f;
   }
 
   // speed text
@@ -401,76 +500,143 @@ void Screen::display_driver_information() {
   ImGui::Text(" km/h");
   ImGui::PopFont();
 
+  // imu
+  ImGui::GetWindowDrawList()->AddCircle(ImVec2(720, 180), 45, ImColor(0, 0, 0),
+                                        0, 2.0f);
+  ImGui::GetWindowDrawList()->AddLine(
+      ImVec2(720, 180 - 45), ImVec2(720, 180 + 45), ImColor(0, 0, 0), 2.0f);
+  ImGui::GetWindowDrawList()->AddLine(
+      ImVec2(720 - 45, 180), ImVec2(720 + 45, 180), ImColor(0, 0, 0), 2.0f);
+  double x = 45 * data_->imu_acceleration[0] / 2.0f;
+  double y = 45 * data_->imu_acceleration[1] / 2.0f;
+  ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(720 + x, 180 - y), 3,
+                                              ImColor(255, 0, 0));
+
+  // tire temperature color
+  ImGui::PushFont(speed_unit_font_);
+  get_tire_temperature_color(data_->tire_temperature[0], ImVec2(685, 300),
+                             ImVec2(715, 360));
+  get_tire_temperature_color(data_->tire_temperature[1], ImVec2(730, 300),
+                             ImVec2(760, 360));
+  get_tire_temperature_color(data_->tire_temperature[2], ImVec2(685, 380),
+                             ImVec2(715, 440));
+  get_tire_temperature_color(data_->tire_temperature[3], ImVec2(730, 380),
+                             ImVec2(760, 440));
+  ImGui::PopFont();
+
+  // tire temperature background
+  ImGui::GetWindowDrawList()->AddRect(ImVec2(685, 300), ImVec2(715, 360),
+                                      IM_COL32(0, 0, 0, 255), 5.0f, 0, 3.0f);
+  ImGui::GetWindowDrawList()->AddRect(ImVec2(730, 300), ImVec2(760, 360),
+                                      IM_COL32(0, 0, 0, 255), 5.0f, 0, 3.0f);
+  ImGui::GetWindowDrawList()->AddRect(ImVec2(685, 380), ImVec2(715, 440),
+                                      IM_COL32(0, 0, 0, 255), 5.0f, 0, 3.0f);
+  ImGui::GetWindowDrawList()->AddRect(ImVec2(730, 380), ImVec2(760, 440),
+                                      IM_COL32(0, 0, 0, 255), 5.0f, 0, 3.0f);
+
   ImGui::End();
 }
 
 void Screen::display_sensor_data() {
-  std::lock_guard<std::mutex> lock(data_->data_mutex);
+  std::lock_guard<std::mutex> lock(data_->mutex);
+
+  // data font
+  ImGui::PushFont(sensor_data_font_);
+
+  // steer angle text
+  ImGui::SetCursorPos(ImVec2(269, 50));
+  ImGui::Text("Steer Angle: ");
 
   // steer angle
   ImGui::PushFont(steer_angle_font_);
   char buffer[10];
-  snprintf(buffer, sizeof(buffer), "%.2f", data_->steer_angle);
+  snprintf(buffer, sizeof(buffer), "%.0f", data_->steer_angle);
 
-  // calculate the position of the text
+  // calculate the position of the steer angle text
   ImVec2 steer_angle_text_size = ImGui::CalcTextSize(buffer);
   double steer_angle_text_x = (261 - steer_angle_text_size.x) / 2.0f;
   ImGui::SetCursorPosX(269 + steer_angle_text_x);
   ImGui::Text("%s", buffer);
   ImGui::PopFont();
 
-  // data font
-  ImGui::PushFont(sensor_data_font_);
-
-  // steer angle text
-  ImGui::SetCursorPos(ImVec2(269, 36));
-  ImGui::Text("Steer Angle: ");
-
   // wheel speed
-  ImGui::SetCursorPos(ImVec2(30, 29));
+  ImGui::SetCursorPos(ImVec2(30, 50));
   ImGui::Text("Wheel Speed: ");
-  ImGui::SetCursorPos(ImVec2(30, 54));
+  ImGui::SetCursorPos(ImVec2(30, 75));
   ImGui::Text("FL: %.2f \nFR: %.2f \nRL: %.2f\nRR: %.2f\n",
               data_->wheel_speed[0], data_->wheel_speed[1],
               data_->wheel_speed[2], data_->wheel_speed[3]);
 
   // tire tempature
-  ImGui::SetCursorPos(ImVec2(30, 183));
+  ImGui::SetCursorPos(ImVec2(30, 170));
   ImGui::Text("Wheel Temperature: ");
-  ImGui::SetCursorPos(ImVec2(30, 208));
-  ImGui::Text("FL: %.2f \nFR: %.2f \nRL: %.2f\nRR: %.2f\n",
+  ImGui::SetCursorPos(ImVec2(30, 195));
+  ImGui::Text("FL: %.2f °C \nFR: %.2f °C \nRL: %.2f °C \nRR: %.2f °C \n",
               data_->tire_temperature[0], data_->tire_temperature[1],
               data_->tire_temperature[2], data_->tire_temperature[3]);
 
   // suspenion travel
-  ImGui::SetCursorPos(ImVec2(30, 336));
+  ImGui::SetCursorPos(ImVec2(30, 340));
   ImGui::Text("Suspension Travel: ");
-  ImGui::SetCursorPos(ImVec2(30, 361));
+  ImGui::SetCursorPos(ImVec2(30, 365));
   ImGui::Text("FL: %.2f \nFR: %.2f \nRL: %.2f\nRR: %.2f\n",
-              data_->suspension_travel[0], data_->suspension_travel[1],
-              data_->suspension_travel[2], data_->suspension_travel[3]);
+              data_->suspension[0], data_->suspension[1], data_->suspension[2],
+              data_->suspension[3]);
 
   // brake oil pressure
-  ImGui::SetCursorPos(ImVec2(571, 55));
+  ImGui::SetCursorPos(ImVec2(571, 50));
   ImGui::Text("Brake Oil Pressure: ");
-  ImGui::SetCursorPos(ImVec2(571, 80));
-  ImGui::Text("Front: %.2f \nRear: %.2f", data_->brake_oil_pressure[0],
-              data_->brake_oil_pressure[1]);
+  ImGui::SetCursorPos(ImVec2(571, 75));
+  ImGui::Text("Front: %.2f \nRear: %.2f", data_->brake_pressure[0],
+              data_->brake_pressure[1]);
 
   // gps
-  ImGui::SetCursorPos(ImVec2(269, 240));
+  ImGui::SetCursorPos(ImVec2(269, 170));
   ImGui::Text("GPS: ");
-  ImGui::SetCursorPos(ImVec2(269, 265));
+  ImGui::SetCursorPos(ImVec2(269, 195));
   ImGui::Text("Latitude: %.2f \nLongitude: %.2f \nAltitude: %.2f",
               data_->gps_position[0], data_->gps_position[1],
               data_->gps_position[2]);
+  ImGui::SetCursorPos(ImVec2(269, 250));
+  ImGui::Text("GPS speed: ");
+  ImGui::SetCursorPos(ImVec2(269, 275));
+  ImGui::Text("X: %.2f \nY: %.2f \nZ: %.2f", data_->gps_velocity[0],
+              data_->gps_velocity[1], data_->gps_velocity[2]);
+
+  // other's temperature
+  ImGui::SetCursorPos(ImVec2(269, 340));
+  ImGui::Text("Other's Temperature: ");
+  ImGui::SetCursorPos(ImVec2(269, 365));
+  ImGui::Text(
+      "Motor temperature: %.2f °C \nInverter temperature: %.2f °C \nBattery "
+      "temperature: %.2f °C",
+      data_->motor_temperature, data_->inverter_temperature,
+      data_->battery_temperature);
 
   // imu
-  ImGui::SetCursorPos(ImVec2(571, 221));
+  ImGui::SetCursorPos(ImVec2(571, 170));
   ImGui::Text("IMU: ");
-  ImGui::SetCursorPos(ImVec2(571, 246));
-  ImGui::Text("X: %.2f \nY: %.2f \nZ: %.2f", data_->imu_acceleration[0],
+  ImGui::SetCursorPos(ImVec2(571, 195));
+  ImGui::Text("X: %.2f g \nY: %.2f g \nZ: %.2f g", data_->imu_acceleration[0],
               data_->imu_acceleration[1], data_->imu_acceleration[2]);
+  ImGui::SetCursorPos(ImVec2(571, 250));
+  ImGui::Text("IMU quaternion: ");
+  ImGui::SetCursorPos(ImVec2(571, 275));
+  ImGui::Text("(%.2f, %.2f,\n %.2f, %.2f)", data_->imu_quaternion[0],
+              data_->imu_quaternion[1], data_->imu_quaternion[2],
+              data_->imu_quaternion[3]);
+
+  // RPi
+  ImGui::SetCursorPos(ImVec2(571, 340));
+  ImGui::Text("RPi: ");
+  ImGui::SetCursorPos(ImVec2(571, 365));
+  ImGui::Text(
+      "CPU: %.1f %%\nCPU temperature: %.1f °C \nMemory: %.1f %% \nDisk: %.1f "
+      "%% \nSwap: %.1f %%",
+      100 * data_->cpu_usage, data_->cpu_temperature, 100 * data_->memory_usage,
+      100 * data_->disk_usage, 100 * data_->swap_usage);
+
+  // data font
   ImGui::PopFont();
 
   ImGui::End();

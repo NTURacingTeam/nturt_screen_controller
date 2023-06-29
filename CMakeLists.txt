@@ -11,9 +11,13 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(can_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(nturt_can_config REQUIRED)
+find_package(nturt_ros_interface REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(sensor_msgs REQUIRED)
+
 
 # configure imgui
 include(cmake/imgui.cmake)
@@ -32,11 +36,13 @@ target_link_libraries(${PROJECT_NAME}
         imgui
 )
 ament_target_dependencies(${PROJECT_NAME}
-        ament_index_cpp
         can_msgs
+        geometry_msgs
         nturt_can_config
+        nturt_ros_interface
         rclcpp
         rclcpp_components
+        sensor_msgs
 )
 # register to node components
 # node component: ScreenController
@@ -108,12 +114,14 @@ ament_export_libraries(
         ${PROJECT_NAME}
 )
 ament_export_dependencies(
-        ament_cmake
-        ament_index_cpp
+        adment_cmake
         can_msgs
+        geometry_msgs
         nturt_can_config
+        nturt_ros_interface
         rclcpp
         rclcpp_components
+        sensor_msgs
 )
 
 ament_package()
