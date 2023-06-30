@@ -8,6 +8,9 @@
 #include <chrono>
 #include <functional>
 
+// gpio include
+#include <wiringPi.h>
+
 // ros2 include
 #include <rclcpp/rclcpp.hpp>
 
@@ -50,6 +53,10 @@ ScreenController::ScreenController(rclcpp::NodeOptions options)
       data_(std::make_shared<ScreenData>()),
       screen_(data_),
       screen_thread_(std::bind(&ScreenController::screen_thread_task, this)) {
+  // initiate wiringpi gpio
+  wiringPiSetup();
+  pinMode(PAGE_PIN, OUTPUT);
+
   // init can_rx_
   memset(&can_rx_, 0, sizeof(can_rx_));
   nturt_can_config_logger_Check_Receive_Timeout_Init(&can_rx_);
@@ -99,6 +106,8 @@ void ScreenController::check_can_timer_callback() {
 }
 
 void ScreenController::update_can_data_timer_callback() {
+  data_->show_sensor_data = digitalRead(PAGE_PIN);
+
   data_->brake = can_rx_.FRONT_SENSOR_1.FRONT_SENSOR_Brake_phys;
   data_->accelerator =
       (can_rx_.FRONT_SENSOR_1.FRONT_SENSOR_Accelerator_1_phys +

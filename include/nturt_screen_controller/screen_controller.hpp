@@ -22,6 +22,8 @@
 #include "nturt_screen_controller/screen.hpp"
 #include "nturt_screen_controller/screen_data.hpp"
 
+#define PAGE_PIN 25
+
 #define WHEEL_SPEED_TO_VEHICLE_SPPED_RATIO 0.1
 
 /**

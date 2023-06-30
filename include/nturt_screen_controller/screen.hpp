@@ -2,6 +2,7 @@
 #define SCREEN_HPP
 
 // stl include
+#include <iostream>
 #include <memory>
 
 #ifdef BACKEND_GLFW
