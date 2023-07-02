@@ -2,6 +2,7 @@
 
 // stl include
 #include <cmath>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -131,7 +132,7 @@ int Screen::init() {
   steer_angle_font_ = io.Fonts->AddFontFromFileTTF(
       (font_path + "Karla-Regular.ttf").c_str(), 30.0f);
   error_warning_message_font_ = io.Fonts->AddFontFromFileTTF(
-      (font_path + "DroidSans.ttf").c_str(), 15.0f);
+      (font_path + "DroidSans.ttf").c_str(), 30.0f);
 
   return 0;
 }
@@ -291,69 +292,65 @@ void Screen::cleanup() {
 void Screen::display_driver_information() {
   std::lock_guard<std::mutex> lock(data_->mutex);
 
-  ImGui::PushFont(error_warning_message_font_);
   // variables for error/warning massage
   bool error_flag = false;
   bool warning_flag = false;
-  bool error_count[4] = {false};
-  bool warning_count[4] = {false};
 
-  // error/warning massage
-  for (int i = 0; i < 4; i++) {
-    if (data_->error_code[i]) {
+  ImVec4 error_color = {1.0f, 0.0f, 0.0f, 1.0f},
+         warn_color = {1.0f, 1.0f, 0.0f, 1.0f}, color;
+
+  // error/warning message
+  ImGui::PushFont(error_warning_message_font_);
+
+  if (data_->error_code[0]) {
+    color = warn_color;
+    warning_flag = true;
+    if (data_->error_code[0] & data_->error_mask[0]) {
+      color = error_color;
       error_flag = true;
-      error_count[i] = true;
-      ImGui::SetCursorPos(ImVec2(25, 120));
-      ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Error");
     }
-    if (data_->error_mask[i]) {
-      warning_flag = true;
-      warning_count[i] = true;
-      ImGui::SetCursorPos(ImVec2(60, 120));
-      ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Warning");
+
+    ImGui::SetCursorPos(ImVec2(100, 20));
+    ImGui::TextColored(color, "Front Box: %u", data_->error_code[0]);
+  }
+  if (data_->error_code[1]) {
+    color = warn_color;
+    warning_flag = true;
+    if (data_->error_code[1] & data_->error_mask[1]) {
+      color = error_color;
+      error_flag = true;
     }
-  }
 
-  // error message
-  if (error_count[0]) {
-    ImGui::SetCursorPos(ImVec2(25, 140));
-    ImGui::Text("Front_box");
+    ImGui::SetCursorPos(ImVec2(100, 60));
+    ImGui::TextColored(color, "Rear Box:  %u", data_->error_code[1]);
   }
-  if (error_count[1]) {
-    ImGui::SetCursorPos(ImVec2(25, 152));
-    ImGui::Text("Rear_box");
-  }
-  if (error_count[2]) {
-    ImGui::SetCursorPos(ImVec2(25, 164));
-    ImGui::Text("Invterter_post");
-  }
-  if (error_count[3]) {
-    ImGui::SetCursorPos(ImVec2(25, 176));
-    ImGui::Text("Invterter_run");
-  }
+  if (data_->error_code[2]) {
+    color = warn_color;
+    warning_flag = true;
+    if (data_->error_code[2] & data_->error_mask[2]) {
+      color = error_color;
+      error_flag = true;
+    }
 
-  // warning message
-  if (warning_count[0]) {
-    ImGui::SetCursorPos(ImVec2(25, 140));
-    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Front_box");
+    ImGui::SetCursorPos(ImVec2(350, 20));
+    ImGui::TextColored(color, "Inv Post: %u", data_->error_code[2]);
   }
-  if (warning_count[1]) {
-    ImGui::SetCursorPos(ImVec2(25, 152));
-    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Rear_box");
-  }
-  if (warning_count[2]) {
-    ImGui::SetCursorPos(ImVec2(25, 164));
-    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Invterter_post");
-  }
-  if (warning_count[3]) {
-    ImGui::SetCursorPos(ImVec2(25, 176));
-    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Invterter_run");
+  if (data_->error_code[3]) {
+    color = warn_color;
+    warning_flag = true;
+    if (data_->error_code[3] & data_->error_mask[3]) {
+      color = error_color;
+      error_flag = true;
+    }
+
+    ImGui::SetCursorPos(ImVec2(350, 60));
+    ImGui::TextColored(color, "Inv Run: %u", data_->error_code[3]);
   }
 
   ImGui::PopFont();
 
-  // warning
-  if (warning_flag) {
+  // error/warning simbol
+  if (error_flag) {
     ImVec2 p = ImGui::GetWindowPos();
     ImVec2 a = ImVec2(p.x + 25, p.y + 25);
     ImVec2 b = ImVec2(p.x + 85, p.y + 85);
@@ -361,13 +358,10 @@ void Screen::display_driver_information() {
     ImVec2 d = ImVec2(p.x + 25, p.y + 85);
     ImGui::GetWindowDrawList()->AddLine(a, b, IM_COL32(255, 0, 0, 255), 15.0f);
     ImGui::GetWindowDrawList()->AddLine(c, d, IM_COL32(255, 0, 0, 255), 15.0f);
-  }
-
-  // error
-  if (error_flag) {
-    ImVec2 a = ImVec2(111 + 4, 91);
-    ImVec2 b = ImVec2(189 - 4, 91);
-    ImVec2 c = ImVec2(150, 25);
+  } else if (warning_flag) {
+    ImVec2 a = ImVec2(15, 91);
+    ImVec2 b = ImVec2(85, 91);
+    ImVec2 c = ImVec2(50, 25);
     ImGui::GetWindowDrawList()->AddTriangleFilled(a, b, c,
                                                   IM_COL32(255, 255, 0, 255));
   }
@@ -405,7 +399,7 @@ void Screen::display_driver_information() {
   // battery text
   ImGui::SetCursorPos(ImVec2(650, 35));
   ImGui::PushFont(battery_font_);
-  ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+  ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
   ImGui::Text("%.0f%%", battery_life_percentage);
   ImGui::PopStyleColor();
   ImGui::PopFont();
@@ -436,7 +430,7 @@ void Screen::display_driver_information() {
              ImGui::GetWindowPos().y + 217 - 200 * data_->accelerator + 240),
       ImVec2(ImGui::GetWindowPos().x + 35 + 30 + 50,
              ImGui::GetWindowPos().y + 217 + 240),
-      IM_COL32(0, 176, 240, 255));
+      IM_COL32(0, 192, 0, 255));
 
   // speed background
   ImGui::GetWindowDrawList()->AddCircleFilled(
@@ -635,6 +629,11 @@ void Screen::display_sensor_data() {
       "%% \nSwap: %.1f %%",
       100 * data_->cpu_usage, data_->cpu_temperature, 100 * data_->memory_usage,
       100 * data_->disk_usage, 100 * data_->swap_usage);
+
+  // error code
+  ImGui::SetCursorPos(ImVec2(30, 430));
+  ImGui::Text("Error Code: %d / %d / %d / %d", data_->error_code[0],
+              data_->error_code[1], data_->error_code[2], data_->error_code[3]);
 
   // data font
   ImGui::PopFont();

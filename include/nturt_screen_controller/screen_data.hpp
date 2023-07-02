@@ -1,11 +1,17 @@
+/**
+ * @file screen_data.hpp
+ * @author QuantumSpawner jet22854111@gmail.com
+ * @brief Data type definition for screen.
+ */
+
+#ifndef SCREEN_DATA_HPP
+#define SCREEN_DATA_HPP
+
 // glibc include
 #include <stdint.h>
 
 // stl include
 #include <mutex>
-
-#ifndef SCREEN_DATA_HPP
-#define SCREEN_DATA_HPP
 
 struct ScreenData {
   /* dirver info -------------------------------------------------------------*/

@@ -26,6 +26,8 @@
 
 #define WHEEL_SPEED_TO_VEHICLE_SPPED_RATIO 0.1
 
+#define ERROR_MASK 0xFFFFFFFFUL
+
 /**
  * @author QuantumSpawner jet22854111@gmail.com
  * @brief Class for controlling dashboard screen.
@@ -59,6 +61,12 @@ class ScreenController : public rclcpp::Node {
   /// @brief Timed callback function for periodically copying can_rx_ to data_
   /// for screen to display.
   void update_can_data_timer_callback();
+
+#if !defined(__aarch64__) || defined(__APPLE__)
+  /// @brief Timed callback function for periodically copying can_rx_ to data_
+  /// for screen to display.
+  void toggle_screen_timer_callback();
+#endif
 
   /// @brief Thread task for controlling screen.
   void screen_thread_task();
@@ -94,6 +102,11 @@ class ScreenController : public rclcpp::Node {
   /// @brief ROS2 timer for periodically copying can_rx_ to data_ for screen to
   /// display.
   rclcpp::TimerBase::SharedPtr update_can_data_timer_;
+
+#if !defined(__aarch64__) || defined(__APPLE__)
+  /// @brief ROS2 timer for periodically toggling screen page.
+  rclcpp::TimerBase::SharedPtr toggle_screen_timer_;
+#endif
 
   /// @brief Shared pointer to ScreenData for displaying data on screen.
   std::shared_ptr<ScreenData> data_;

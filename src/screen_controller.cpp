@@ -8,8 +8,10 @@
 #include <chrono>
 #include <functional>
 
+#if defined(__aarch64__) && !defined(__APPLE__)
 // gpio include
 #include <wiringPi.h>
+#endif
 
 // ros2 include
 #include <rclcpp/rclcpp.hpp>
@@ -50,16 +52,27 @@ ScreenController::ScreenController(rclcpp::NodeOptions options)
       update_can_data_timer_(this->create_wall_timer(
           100ms,
           std::bind(&ScreenController::update_can_data_timer_callback, this))),
+#if !defined(__aarch64__) || defined(__APPLE__)
+      toggle_screen_timer_(this->create_wall_timer(
+          5s,
+          std::bind(&ScreenController::toggle_screen_timer_callback, this))),
+#endif
       data_(std::make_shared<ScreenData>()),
       screen_(data_),
       screen_thread_(std::bind(&ScreenController::screen_thread_task, this)) {
+#if defined(__aarch64__) && !defined(__APPLE__)
   // initiate wiringpi gpio
   wiringPiSetup();
   pinMode(PAGE_PIN, OUTPUT);
+#endif
 
   // init can_rx_
   memset(&can_rx_, 0, sizeof(can_rx_));
   nturt_can_config_logger_Check_Receive_Timeout_Init(&can_rx_);
+
+  for (int i = 0; i < 4; i++) {
+    data_->error_mask[i] = ERROR_MASK;
+  }
 }
 
 void ScreenController::register_can_callback() {
@@ -106,7 +119,9 @@ void ScreenController::check_can_timer_callback() {
 }
 
 void ScreenController::update_can_data_timer_callback() {
+#if defined(__aarch64__) && !defined(__APPLE__)
   data_->show_sensor_data = digitalRead(PAGE_PIN);
+#endif
 
   data_->brake = can_rx_.FRONT_SENSOR_1.FRONT_SENSOR_Brake_phys;
   data_->accelerator =
@@ -189,6 +204,16 @@ void ScreenController::update_can_data_timer_callback() {
       can_rx_.INV_Temperature_Set_2.INV_Control_Board_Temp_phys;
   data_->battery_temperature = 30;
 }
+
+#if !defined(__aarch64__) || defined(__APPLE__)
+void ScreenController::toggle_screen_timer_callback() {
+  if (data_->show_sensor_data) {
+    data_->show_sensor_data = false;
+  } else {
+    data_->show_sensor_data = true;
+  }
+}
+#endif
 
 void ScreenController::screen_thread_task() {
   screen_.init();

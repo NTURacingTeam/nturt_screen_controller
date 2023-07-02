@@ -36,6 +36,11 @@ target_link_libraries(${PROJECT_NAME}
         imgui
         wiringPi
 )
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" AND NOT APPLE)
+        target_link_libraries(${PROJECT_NAME}
+                wiringPi
+        )     
+endif()
 ament_target_dependencies(${PROJECT_NAME}
         can_msgs
         geometry_msgs
