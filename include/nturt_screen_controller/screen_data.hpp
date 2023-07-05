@@ -45,8 +45,17 @@ struct ScreenData {
   double imu_quaternion[4];
 
   double motor_temperature;
-  double inverter_temperature;
   double battery_temperature;
+
+  double inverter_dc_voltage;
+  double inverter_control_board_temperature;
+  double inverter_hot_spot_temperature;
+  uint8_t inverter_state;
+  uint8_t inverter_vsm_state;
+
+  uint8_t vcu_state;
+  uint16_t rtd_condition;
+  uint8_t rear_box_state;
 
   double cpu_temperature;
   double cpu_usage;

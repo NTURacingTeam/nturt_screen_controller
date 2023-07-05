@@ -3,6 +3,7 @@
 // stl include
 #include <cmath>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -37,6 +38,10 @@
 #ifdef BACKEND_GLFW
 static void glfw_error_callback(int error, const char *description);
 #endif
+
+/* static variable -----------------------------------------------------------*/
+static const std::map<uint8_t, std::string> status_map = {
+    {0, "Init"}, {1, "Ready"}, {2, "RTD"}, {3, "Running"}, {4, "Error"}};
 
 Screen::Screen(std::shared_ptr<ScreenData> data) : data_(data) {}
 
@@ -311,7 +316,7 @@ void Screen::display_driver_information() {
     }
 
     ImGui::SetCursorPos(ImVec2(100, 20));
-    ImGui::TextColored(color, "Front Box: %u", data_->error_code[0]);
+    ImGui::TextColored(color, "Front Box: 0x%X", data_->error_code[0]);
   }
   if (data_->error_code[1]) {
     color = warn_color;
@@ -322,7 +327,7 @@ void Screen::display_driver_information() {
     }
 
     ImGui::SetCursorPos(ImVec2(100, 60));
-    ImGui::TextColored(color, "Rear Box:  %u", data_->error_code[1]);
+    ImGui::TextColored(color, "Rear Box:  0x%X", data_->error_code[1]);
   }
   if (data_->error_code[2]) {
     color = warn_color;
@@ -333,7 +338,7 @@ void Screen::display_driver_information() {
     }
 
     ImGui::SetCursorPos(ImVec2(350, 20));
-    ImGui::TextColored(color, "Inv Post: %u", data_->error_code[2]);
+    ImGui::TextColored(color, "Inv Post: 0x%X", data_->error_code[2]);
   }
   if (data_->error_code[3]) {
     color = warn_color;
@@ -344,7 +349,7 @@ void Screen::display_driver_information() {
     }
 
     ImGui::SetCursorPos(ImVec2(350, 60));
-    ImGui::TextColored(color, "Inv Run: %u", data_->error_code[3]);
+    ImGui::TextColored(color, "Inv Run: 0x%X", data_->error_code[3]);
   }
 
   ImGui::PopFont();
@@ -537,9 +542,49 @@ void Screen::display_sensor_data() {
   // data font
   ImGui::PushFont(sensor_data_font_);
 
+  /* first column ------------------------------------------------------------*/
+  // wheel speed
+  ImGui::SetCursorPos(ImVec2(30, 30));
+  ImGui::Text("Wheel Speed:");
+  ImGui::SetCursorPos(ImVec2(50, 55));
+  ImGui::Text("FL: %.2f RPM\nFR: %.2f RPM\nRL: %.2f RPM\nRR: %.2f RPM\n",
+              data_->wheel_speed[0], data_->wheel_speed[1],
+              data_->wheel_speed[2], data_->wheel_speed[3]);
+
+  // tire tempature
+  ImGui::SetCursorPos(ImVec2(30, 125));
+  ImGui::Text("Tire Temperature:");
+  ImGui::SetCursorPos(ImVec2(50, 150));
+  ImGui::Text("FL: %.2f °C \nFR: %.2f °C \nRL: %.2f °C \nRR: %.2f °C \n",
+              data_->tire_temperature[0], data_->tire_temperature[1],
+              data_->tire_temperature[2], data_->tire_temperature[3]);
+
+  // suspenion travel
+  ImGui::SetCursorPos(ImVec2(30, 220));
+  ImGui::Text("Suspension Travel:");
+  ImGui::SetCursorPos(ImVec2(50, 245));
+  ImGui::Text("FL: %.2f mm\nFR: %.2f mm\nRL: %.2f mm\nRR: %.2f mm\n",
+              data_->suspension[0], data_->suspension[1], data_->suspension[2],
+              data_->suspension[3]);
+
+  // brake oil pressure
+  ImGui::SetCursorPos(ImVec2(30, 315));
+  ImGui::Text("Brake Oil Pressure:");
+  ImGui::SetCursorPos(ImVec2(50, 340));
+  ImGui::Text("Front: %.2f bar\nRear: %.2f bar", data_->brake_pressure[0],
+              data_->brake_pressure[1]);
+
+  // other temperatures
+  ImGui::SetCursorPos(ImVec2(30, 380));
+  ImGui::Text("Temperatures:");
+  ImGui::SetCursorPos(ImVec2(50, 405));
+  ImGui::Text("Motor Temp: %.2f °C \nBattery Temp: %.2f °C",
+              data_->motor_temperature, data_->battery_temperature);
+
+  /* second column -----------------------------------------------------------*/
   // steer angle text
-  ImGui::SetCursorPos(ImVec2(269, 50));
-  ImGui::Text("Steer Angle: ");
+  ImGui::SetCursorPos(ImVec2(269, 30));
+  ImGui::Text("Steer Angle:");
 
   // steer angle
   ImGui::PushFont(steer_angle_font_);
@@ -553,87 +598,69 @@ void Screen::display_sensor_data() {
   ImGui::Text("%s", buffer);
   ImGui::PopFont();
 
-  // wheel speed
-  ImGui::SetCursorPos(ImVec2(30, 50));
-  ImGui::Text("Wheel Speed: ");
-  ImGui::SetCursorPos(ImVec2(30, 75));
-  ImGui::Text("FL: %.2f \nFR: %.2f \nRL: %.2f\nRR: %.2f\n",
-              data_->wheel_speed[0], data_->wheel_speed[1],
-              data_->wheel_speed[2], data_->wheel_speed[3]);
-
-  // tire tempature
-  ImGui::SetCursorPos(ImVec2(30, 170));
-  ImGui::Text("Wheel Temperature: ");
-  ImGui::SetCursorPos(ImVec2(30, 195));
-  ImGui::Text("FL: %.2f °C \nFR: %.2f °C \nRL: %.2f °C \nRR: %.2f °C \n",
-              data_->tire_temperature[0], data_->tire_temperature[1],
-              data_->tire_temperature[2], data_->tire_temperature[3]);
-
-  // suspenion travel
-  ImGui::SetCursorPos(ImVec2(30, 340));
-  ImGui::Text("Suspension Travel: ");
-  ImGui::SetCursorPos(ImVec2(30, 365));
-  ImGui::Text("FL: %.2f \nFR: %.2f \nRL: %.2f\nRR: %.2f\n",
-              data_->suspension[0], data_->suspension[1], data_->suspension[2],
-              data_->suspension[3]);
-
-  // brake oil pressure
-  ImGui::SetCursorPos(ImVec2(571, 50));
-  ImGui::Text("Brake Oil Pressure: ");
-  ImGui::SetCursorPos(ImVec2(571, 75));
-  ImGui::Text("Front: %.2f \nRear: %.2f", data_->brake_pressure[0],
-              data_->brake_pressure[1]);
-
-  // gps
-  ImGui::SetCursorPos(ImVec2(269, 170));
-  ImGui::Text("GPS: ");
-  ImGui::SetCursorPos(ImVec2(269, 195));
-  ImGui::Text("Latitude: %.2f \nLongitude: %.2f \nAltitude: %.2f",
-              data_->gps_position[0], data_->gps_position[1],
-              data_->gps_position[2]);
-  ImGui::SetCursorPos(ImVec2(269, 250));
-  ImGui::Text("GPS speed: ");
-  ImGui::SetCursorPos(ImVec2(269, 275));
-  ImGui::Text("X: %.2f \nY: %.2f \nZ: %.2f", data_->gps_velocity[0],
-              data_->gps_velocity[1], data_->gps_velocity[2]);
-
-  // other's temperature
-  ImGui::SetCursorPos(ImVec2(269, 340));
-  ImGui::Text("Other's Temperature: ");
-  ImGui::SetCursorPos(ImVec2(269, 365));
-  ImGui::Text(
-      "Motor temperature: %.2f °C \nInverter temperature: %.2f °C \nBattery "
-      "temperature: %.2f °C",
-      data_->motor_temperature, data_->inverter_temperature,
-      data_->battery_temperature);
-
   // imu
-  ImGui::SetCursorPos(ImVec2(571, 170));
-  ImGui::Text("IMU: ");
-  ImGui::SetCursorPos(ImVec2(571, 195));
-  ImGui::Text("X: %.2f g \nY: %.2f g \nZ: %.2f g", data_->imu_acceleration[0],
+  ImGui::SetCursorPos(ImVec2(269, 90));
+  ImGui::Text("IMU:");
+  ImGui::SetCursorPos(ImVec2(289, 115));
+  ImGui::Text("X: %.6f g \nY: %.6f g \nZ: %.6f g", data_->imu_acceleration[0],
               data_->imu_acceleration[1], data_->imu_acceleration[2]);
-  ImGui::SetCursorPos(ImVec2(571, 250));
-  ImGui::Text("IMU quaternion: ");
-  ImGui::SetCursorPos(ImVec2(571, 275));
-  ImGui::Text("(%.2f, %.2f,\n %.2f, %.2f)", data_->imu_quaternion[0],
+
+  ImGui::SetCursorPos(ImVec2(269, 170));
+  ImGui::Text("Angular Velocity:");
+  ImGui::SetCursorPos(ImVec2(289, 195));
+  ImGui::Text("X: %.2f °/s \nY: %.2f °/s \nZ: %.2f °/s",
+              data_->imu_angular_velocity[0], data_->imu_angular_velocity[1],
+              data_->imu_angular_velocity[2]);
+
+  ImGui::SetCursorPos(ImVec2(269, 250));
+  ImGui::Text("Quaternion:");
+  ImGui::SetCursorPos(ImVec2(289, 275));
+  ImGui::Text("(%.4f, %.4f,\n%.4f, %.4f)", data_->imu_quaternion[0],
               data_->imu_quaternion[1], data_->imu_quaternion[2],
               data_->imu_quaternion[3]);
 
-  // RPi
-  ImGui::SetCursorPos(ImVec2(571, 340));
-  ImGui::Text("RPi: ");
-  ImGui::SetCursorPos(ImVec2(571, 365));
+  // gps
+  ImGui::SetCursorPos(ImVec2(269, 315));
+  ImGui::Text("GPS:");
+  ImGui::SetCursorPos(ImVec2(289, 340));
+  ImGui::Text("Latitude: %.5f °N\nLongitude: %.5f °E\nAltitude: %.f m",
+              data_->gps_position[0], data_->gps_position[1],
+              data_->gps_position[2]);
+  ImGui::SetCursorPos(ImVec2(269, 395));
+  ImGui::Text("GPS Speed:");
+  ImGui::SetCursorPos(ImVec2(289, 420));
+  ImGui::Text("X: %.f m/s\nY: %.f m/s\nZ: %.f m/s", data_->gps_velocity[0],
+              data_->gps_velocity[1], data_->gps_velocity[2]);
+
+  /* third column ------------------------------------------------------------*/
+  // inverter
+  ImGui::SetCursorPos(ImVec2(551, 30));
+  ImGui::Text("Inverter:");
+  ImGui::SetCursorPos(ImVec2(571, 55));
   ImGui::Text(
-      "CPU: %.1f %%\nCPU temperature: %.1f °C \nMemory: %.1f %% \nDisk: %.1f "
-      "%% \nSwap: %.1f %%",
+      "DC Voltage: %.1f V\nControl Board Temp: %.1f °C\nHot Spot Temp: %.1f "
+      "°C\nState: %u \nVSM State: %u \n",
+      data_->inverter_dc_voltage, data_->inverter_control_board_temperature,
+      data_->inverter_hot_spot_temperature, data_->inverter_state,
+      data_->inverter_vsm_state);
+
+  // bux status
+  ImGui::SetCursorPos(ImVec2(551, 140));
+  ImGui::Text("Box Status:");
+  ImGui::SetCursorPos(ImVec2(571, 165));
+  ImGui::Text("VCU State: %s\nRTD Condition: 0x%X\nRear Box State: %s",
+              status_map.at(data_->vcu_state).c_str(), data_->rtd_condition,
+              status_map.at(data_->rear_box_state).c_str());
+
+  // rpi stats
+  ImGui::SetCursorPos(ImVec2(551, 220));
+  ImGui::Text("RPi:");
+  ImGui::SetCursorPos(ImVec2(571, 245));
+  ImGui::Text(
+      "CPU: %.1f %%\nCPU Temp: %.1f °C\nMemory: %.1f %%\nDisk: %.1f %%\nSwap: "
+      "%.1f %%",
       100 * data_->cpu_usage, data_->cpu_temperature, 100 * data_->memory_usage,
       100 * data_->disk_usage, 100 * data_->swap_usage);
-
-  // error code
-  ImGui::SetCursorPos(ImVec2(30, 430));
-  ImGui::Text("Error Code: %d / %d / %d / %d", data_->error_code[0],
-              data_->error_code[1], data_->error_code[2], data_->error_code[3]);
 
   // data font
   ImGui::PopFont();

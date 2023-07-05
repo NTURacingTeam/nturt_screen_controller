@@ -70,9 +70,10 @@ ScreenController::ScreenController(rclcpp::NodeOptions options)
   memset(&can_rx_, 0, sizeof(can_rx_));
   nturt_can_config_logger_Check_Receive_Timeout_Init(&can_rx_);
 
-  for (int i = 0; i < 4; i++) {
-    data_->error_mask[i] = ERROR_MASK;
-  }
+  data_->error_mask[0] = FRONT_BOX_ERROR_MASK;
+  data_->error_mask[1] = REAR_BOX_ERROR_MASK;
+  data_->error_mask[2] = INVERTER_POST_ERROR_MASK;
+  data_->error_mask[3] = INVERTER_RUN_ERROR_MASK;
 }
 
 void ScreenController::register_can_callback() {
@@ -161,9 +162,9 @@ void ScreenController::update_can_data_timer_callback() {
 
   data_->error_code[0] = can_rx_.VCU_Status.VCU_Error_Code;
   data_->error_code[1] = can_rx_.REAR_SENSOR_Status.REAR_SENSOR_Error_Code;
-  data_->error_code[2] = (can_rx_.INV_Fault_Codes.INV_Post_Fault_Hi >> 16) &
+  data_->error_code[2] = (can_rx_.INV_Fault_Codes.INV_Post_Fault_Hi >> 16) |
                          can_rx_.INV_Fault_Codes.INV_Post_Fault_Lo;
-  data_->error_code[3] = (can_rx_.INV_Fault_Codes.INV_Run_Fault_Hi >> 16) &
+  data_->error_code[3] = (can_rx_.INV_Fault_Codes.INV_Run_Fault_Hi >> 16) |
                          can_rx_.INV_Fault_Codes.INV_Run_Fault_Lo;
 
   data_->steer_angle = can_rx_.FRONT_SENSOR_1.FRONT_SENSOR_Steer_Angle;
@@ -199,10 +200,21 @@ void ScreenController::update_can_data_timer_callback() {
   data_->imu_quaternion[2] = can_rx_.IMU_Quaternion.IMU_Quaternion_Y_phys;
   data_->imu_quaternion[3] = can_rx_.IMU_Quaternion.IMU_Quaternion_Z_phys;
 
-  data_->motor_temperature = can_rx_.INV_Temperature_Set_3.INV_Motor_Temp_phys;
-  data_->inverter_temperature =
+  data_->inverter_control_board_temperature =
       can_rx_.INV_Temperature_Set_2.INV_Control_Board_Temp_phys;
+  data_->inverter_hot_spot_temperature =
+      can_rx_.INV_Temperature_Set_3.INV_Hot_Spot_Temp_phys;
+  data_->motor_temperature = can_rx_.INV_Temperature_Set_3.INV_Motor_Temp_phys;
   data_->battery_temperature = 30;
+
+  data_->inverter_dc_voltage =
+      can_rx_.INV_Fast_Info.INV_Fast_DC_Bus_Voltage_phys;
+  data_->inverter_state = can_rx_.INV_Internal_States.INV_Inverter_State;
+  data_->inverter_vsm_state = can_rx_.INV_Internal_States.INV_VSM_State;
+
+  data_->vcu_state = can_rx_.VCU_Status.VCU_Status;
+  data_->rtd_condition = can_rx_.VCU_Status.VCU_RTD_Condition;
+  data_->rear_box_state = can_rx_.REAR_SENSOR_Status.REAR_SENSOR_Status;
 }
 
 #if !defined(__aarch64__) || defined(__APPLE__)
