@@ -12,6 +12,7 @@
 
 // stl include
 #include <mutex>
+#include <vector>
 
 struct ScreenData {
   /* dirver info -------------------------------------------------------------*/
@@ -31,6 +32,9 @@ struct ScreenData {
   /// @brief If error_code & error_mask != 0, it's error, otherwise it's
   /// warning if error_code != 0.
   uint32_t error_mask[4];
+
+  /// @brief Timeout frame name to display on the screen.
+  std::vector<const char*> timeout_frame_name;
 
   /* sensor data -------------------------------------------------------------*/
   double steer_angle;

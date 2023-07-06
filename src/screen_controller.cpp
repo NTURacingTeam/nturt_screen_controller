@@ -5,8 +5,12 @@
 #include <string.h>
 
 // std include
+#include <algorithm>
+#include <array>
 #include <chrono>
+#include <cmath>
 #include <functional>
+#include <map>
 
 #if defined(__aarch64__) && !defined(__APPLE__)
 // gpio include
@@ -30,6 +34,28 @@
 #include "nturt_screen_controller/screen_data.hpp"
 
 using namespace std::chrono_literals;
+
+/// @brief Map to convert can id to frame name.
+static const std::map<uint32_t, const char*> can_id_to_frame_name = {
+    {FRONT_SENSOR_1_CANID, "front_sensor"},
+    {FRONT_SENSOR_2_CANID, "front_sensor"},
+    {FRONT_SENSOR_3_CANID, "front_sensor"},
+
+    {VCU_Status_CANID, "vcu_status"},
+
+    {REAR_SENSOR_1_CANID, "rear_sensor"},
+    {REAR_SENSOR_2_CANID, "rear_sensor"},
+    {REAR_SENSOR_Status_CANID, "rear_sensor_status"},
+
+    {BMS_Cell_Stats_CANID, "bms_cell"},
+
+    {INV_Fast_Info_CANID, "inv_fast"},
+    {INV_Temperature_Set_2_CANID, "inv_temp"},
+    {INV_Temperature_Set_3_CANID, "inv_temp"},
+    {INV_Fault_Codes_CANID, "inv_fault"},
+    {INV_Internal_States_CANID, "inv_internal"},
+    {INV_Command_Message_CANID, "inv_command"},
+};
 
 ScreenController::ScreenController(rclcpp::NodeOptions options)
     : Node("nturt_screen_controller_node", options),
@@ -88,8 +114,29 @@ void ScreenController::register_can_callback() {
 }
 
 void ScreenController::onCan(const std::shared_ptr<can_msgs::msg::Frame> msg) {
-  nturt_can_config_logger_Receive(&can_rx_, msg->data.data(), msg->id,
-                                  msg->dlc);
+  uint32_t id = nturt_can_config_logger_Receive(&can_rx_, msg->data.data(),
+                                                msg->id, msg->dlc);
+
+  if (id == BMS_Cell_Stats_CANID) {
+    BMS_Cell_Stats_t* bms_cell_stats = &can_rx_.BMS_Cell_Stats;
+    int segment_index = bms_cell_stats->BMS_Segment_Index,
+        cell_index =
+            NUM_BATTERY_CELL_PER_FRAME * bms_cell_stats->BMS_Cell_Index;
+
+    battery_cell_voltage_[segment_index][cell_index] =
+        bms_cell_stats->BMS_Cell_Voltage_1_phys;
+    battery_cell_voltage_[segment_index][cell_index + 1] =
+        bms_cell_stats->BMS_Cell_Voltage_2_phys;
+    battery_cell_voltage_[segment_index][cell_index + 2] =
+        bms_cell_stats->BMS_Cell_Voltage_3_phys;
+
+    battery_cell_temperature_[segment_index][cell_index] =
+        bms_cell_stats->BMS_Cell_Temperature_1;
+    battery_cell_temperature_[segment_index][cell_index + 1] =
+        bms_cell_stats->BMS_Cell_Temperature_2;
+    battery_cell_temperature_[segment_index][cell_index + 2] =
+        bms_cell_stats->BMS_Cell_Temperature_3;
+  }
 }
 
 void ScreenController::onGpsFix(
@@ -129,13 +176,15 @@ void ScreenController::update_can_data_timer_callback() {
       (can_rx_.FRONT_SENSOR_1.FRONT_SENSOR_Accelerator_1_phys +
        can_rx_.FRONT_SENSOR_1.FRONT_SENSOR_Accelerator_2_phys) /
       2.0;
-  data_->speed =
-      WHEEL_SPEED_TO_VEHICLE_SPPED_RATIO *
-      (can_rx_.FRONT_SENSOR_2.FRONT_SENSOR_Front_Left_Wheel_Speed_phys +
-       can_rx_.FRONT_SENSOR_2.FRONT_SENSOR_Front_Right_Wheel_Speed_phys +
-       can_rx_.REAR_SENSOR_1.REAR_SENSOR_Rear_Left_Wheel_Speed_phys +
-       can_rx_.REAR_SENSOR_1.REAR_SENSOR_Rear_Right_Wheel_Speed_phys) /
-      4.0;
+  //   data_->speed =
+  //       WHEEL_SPEED_TO_VEHICLE_SPPED_RATIO *
+  //       (can_rx_.FRONT_SENSOR_2.FRONT_SENSOR_Front_Left_Wheel_Speed_phys +
+  //        can_rx_.FRONT_SENSOR_2.FRONT_SENSOR_Front_Right_Wheel_Speed_phys +
+  //        can_rx_.REAR_SENSOR_1.REAR_SENSOR_Rear_Left_Wheel_Speed_phys +
+  //        can_rx_.REAR_SENSOR_1.REAR_SENSOR_Rear_Right_Wheel_Speed_phys) /
+  //       4.0;
+  data_->speed = std::abs(can_rx_.INV_Fast_Info.INV_Fast_Motor_Speed) *
+                 MOTOR_SPEED_TO_VEHICLE_SPEED_RATIO;
   data_->tire_temperature[0] =
       (can_rx_.FRONT_SENSOR_3.FRONT_SENSOR_Front_Left_Tire_Temperature_2_phys +
        can_rx_.FRONT_SENSOR_3.FRONT_SENSOR_Front_Left_Tire_Temperature_3_phys) /
@@ -153,8 +202,6 @@ void ScreenController::update_can_data_timer_callback() {
       (can_rx_.REAR_SENSOR_2.REAR_SENSOR_Rear_Right_Tire_Temperature_2_phys +
        can_rx_.REAR_SENSOR_2.REAR_SENSOR_Rear_Right_Tire_Temperature_3_phys) /
       2.0;
-
-  data_->battery_life = 0.5;
 
   data_->imu_acceleration[0] = can_rx_.IMU_Acceleration.IMU_Acceleration_X_phys;
   data_->imu_acceleration[1] = can_rx_.IMU_Acceleration.IMU_Acceleration_Y_phys;
@@ -200,15 +247,21 @@ void ScreenController::update_can_data_timer_callback() {
   data_->imu_quaternion[2] = can_rx_.IMU_Quaternion.IMU_Quaternion_Y_phys;
   data_->imu_quaternion[3] = can_rx_.IMU_Quaternion.IMU_Quaternion_Z_phys;
 
+  data_->battery_life = 0.5;
+
+  data_->motor_temperature = can_rx_.INV_Temperature_Set_3.INV_Motor_Temp_phys;
+  data_->battery_temperature = *std ::max_element(
+      &battery_cell_temperature_[0][0],
+      &battery_cell_temperature_[NUM_BATTERY_SEGMENT - 1]
+                                [NUM_BATTERY_CELL_PER_SEGMENT - 1] +
+          1);
+
+  data_->inverter_dc_voltage =
+      can_rx_.INV_Fast_Info.INV_Fast_DC_Bus_Voltage_phys;
   data_->inverter_control_board_temperature =
       can_rx_.INV_Temperature_Set_2.INV_Control_Board_Temp_phys;
   data_->inverter_hot_spot_temperature =
       can_rx_.INV_Temperature_Set_3.INV_Hot_Spot_Temp_phys;
-  data_->motor_temperature = can_rx_.INV_Temperature_Set_3.INV_Motor_Temp_phys;
-  data_->battery_temperature = 30;
-
-  data_->inverter_dc_voltage =
-      can_rx_.INV_Fast_Info.INV_Fast_DC_Bus_Voltage_phys;
   data_->inverter_state = can_rx_.INV_Internal_States.INV_Inverter_State;
   data_->inverter_vsm_state = can_rx_.INV_Internal_States.INV_VSM_State;
 
