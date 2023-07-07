@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <numeric>
 #include <string>
 
 // ros2 include
@@ -126,6 +127,10 @@ int Screen::init() {
   std::string font_path =
       ament_index_cpp::get_package_share_directory("nturt_screen_controller") +
       "/fonts/";
+  error_warning_message_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "DroidSans.ttf").c_str(), 30.0f);
+  can_rx_error_font_ = io.Fonts->AddFontFromFileTTF(
+      (font_path + "DroidSans.ttf").c_str(), 25.0f);
   speed_font_ = io.Fonts->AddFontFromFileTTF(
       (font_path + "HelveticaNeue.ttc").c_str(), 160.0f);
   speed_unit_font_ = io.Fonts->AddFontFromFileTTF(
@@ -136,8 +141,6 @@ int Screen::init() {
       (font_path + "Cousine-Regular.ttf").c_str(), 15.0f);
   steer_angle_font_ = io.Fonts->AddFontFromFileTTF(
       (font_path + "Karla-Regular.ttf").c_str(), 30.0f);
-  error_warning_message_font_ = io.Fonts->AddFontFromFileTTF(
-      (font_path + "DroidSans.ttf").c_str(), 30.0f);
 
   return 0;
 }
@@ -353,6 +356,22 @@ void Screen::display_driver_information() {
   }
 
   ImGui::PopFont();
+
+  // can reception timeout error
+  if (data_->timeout_frame_name.size() != 0) {
+    std::string timeout_frame_names = std::accumulate(
+        data_->timeout_frame_name.begin() + 1, data_->timeout_frame_name.end(),
+        data_->timeout_frame_name[0],
+        [](const std::string &a, const std::string &b) {
+          return a + ", " + b;
+        });
+
+    ImGui::PushFont(can_rx_error_font_);
+    ImGui::SetCursorPos(ImVec2(30, 100));
+    ImGui::TextColored(error_color, "CAN Timeout: %s",
+                       timeout_frame_names.c_str());
+    ImGui::PopFont();
+  }
 
   // error/warning simbol
   if (error_flag) {

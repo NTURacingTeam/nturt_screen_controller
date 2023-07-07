@@ -68,6 +68,12 @@ class Screen {
 #endif
 
   // imgui fonts
+  /// @brief ImGui font for error/warning message.
+  ImFont *error_warning_message_font_;
+
+  /// @brief ImGui font for can rx error.
+  ImFont *can_rx_error_font_;
+
   /// @brief ImGui font for speed.
   ImFont *speed_font_;
 
@@ -82,9 +88,6 @@ class Screen {
 
   /// @brief ImGui font for steer angle.
   ImFont *steer_angle_font_;
-
-  /// @brief ImGui font for error/warning message.
-  ImFont *error_warning_message_font_;
 
   /// @brief Shared pointer to screen data.
   std::shared_ptr<ScreenData> data_;
