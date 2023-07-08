@@ -113,7 +113,7 @@ int Screen::init() {
   style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 
   // setup dear imgui style
-  ImGui::StyleColorsDark();
+  ImGui::StyleColorsLight();
 
   // setup platform/renderer backends
 #ifdef BACKEND_GLFW
@@ -220,8 +220,13 @@ void Screen::mainloop() {
                      ImGuiWindowFlags_NoBackground);
 
     // background
-    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(800, 480),
-                                              IM_COL32(107, 113, 115, 150));
+    if (!data_->show_sensor_data) {
+      ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(800, 480),
+                                                IM_COL32(107, 113, 115, 150));
+    } else {
+      ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(800, 480),
+                                                IM_COL32(255, 255, 255, 255));
+    }
 
     // draw screen
     if (!data_->show_sensor_data) {
@@ -621,7 +626,7 @@ void Screen::display_sensor_data() {
   ImGui::SetCursorPos(ImVec2(269, 90));
   ImGui::Text("IMU:");
   ImGui::SetCursorPos(ImVec2(289, 115));
-  ImGui::Text("X: %.6f g \nY: %.6f g \nZ: %.6f g", data_->imu_acceleration[0],
+  ImGui::Text("X: %.3f g \nY: %.3f g \nZ: %.3f g", data_->imu_acceleration[0],
               data_->imu_acceleration[1], data_->imu_acceleration[2]);
 
   ImGui::SetCursorPos(ImVec2(269, 170));
@@ -677,9 +682,10 @@ void Screen::display_sensor_data() {
   ImGui::SetCursorPos(ImVec2(571, 245));
   ImGui::Text(
       "CPU: %.1f %%\nCPU Temp: %.1f °C\nMemory: %.1f %%\nDisk: %.1f %%\nSwap: "
-      "%.1f %%",
+      "%.1f %%\nWifi SSID: %s\nWifi Strength: %s",
       100 * data_->cpu_usage, data_->cpu_temperature, 100 * data_->memory_usage,
-      100 * data_->disk_usage, 100 * data_->swap_usage);
+      100 * data_->disk_usage, 100 * data_->swap_usage,
+      data_->wifi_ssid.c_str(), data_->wifi_strength.c_str());
 
   // data font
   ImGui::PopFont();

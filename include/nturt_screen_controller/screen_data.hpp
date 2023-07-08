@@ -67,6 +67,9 @@ struct ScreenData {
   double disk_usage;
   double swap_usage;
 
+  std::string wifi_ssid;
+  std::string wifi_strength;
+
   /* control flag ------------------------------------------------------------*/
   /// @brief Flag for showing sensor data (true) or driver information (false).
   bool show_sensor_data;

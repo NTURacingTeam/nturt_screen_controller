@@ -148,10 +148,15 @@ ScreenController::ScreenController(rclcpp::NodeOptions options)
   memset(&can_rx_, 0, sizeof(can_rx_));
   nturt_can_config_logger_Check_Receive_Timeout_Init(&can_rx_);
 
+  // set error mask
   data_->error_mask[0] = FRONT_BOX_ERROR_MASK;
   data_->error_mask[1] = REAR_BOX_ERROR_MASK;
   data_->error_mask[2] = INVERTER_POST_ERROR_MASK;
   data_->error_mask[3] = INVERTER_RUN_ERROR_MASK;
+
+  // set wifi info
+  data_->wifi_ssid = "Not Connected!";
+  data_->wifi_strength = "N/A";
 }
 
 void ScreenController::register_can_callback() {
@@ -183,11 +188,11 @@ void ScreenController::onCan(const std::shared_ptr<can_msgs::msg::Frame> msg) {
         bms_cell_stats->BMS_Cell_Voltage_3_phys;
 
     battery_cell_temperature_[segment_index][cell_index] =
-        bms_cell_stats->BMS_Cell_Temperature_1;
+        bms_cell_stats->BMS_Cell_Temperature_1_phys;
     battery_cell_temperature_[segment_index][cell_index + 1] =
-        bms_cell_stats->BMS_Cell_Temperature_2;
+        bms_cell_stats->BMS_Cell_Temperature_2_phys;
     battery_cell_temperature_[segment_index][cell_index + 2] =
-        bms_cell_stats->BMS_Cell_Temperature_3;
+        bms_cell_stats->BMS_Cell_Temperature_3_phys;
   }
 }
 
@@ -212,6 +217,23 @@ void ScreenController::onSystemStats(
   data_->memory_usage = msg->memory_usage;
   data_->disk_usage = msg->disk_usage;
   data_->swap_usage = msg->swap_usage;
+
+  // if wifi not connected
+  if (msg->wifi_strength == 0) {
+    data_->wifi_ssid = "Not Connected!";
+    data_->wifi_strength = "N/A";
+  } else {
+    data_->wifi_ssid = msg->wifi_ssid;
+    if (msg->wifi_strength > -60) {
+      data_->wifi_strength = "Excellent";
+    } else if (msg->wifi_strength > -70) {
+      data_->wifi_strength = "Good";
+    } else if (msg->wifi_strength > -80) {
+      data_->wifi_strength = "Fair";
+    } else {
+      data_->wifi_strength = "Weak";
+    }
+  }
 }
 
 void ScreenController::check_can_timer_callback() {

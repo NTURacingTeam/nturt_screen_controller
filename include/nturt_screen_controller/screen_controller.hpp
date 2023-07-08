@@ -85,8 +85,8 @@ class ScreenController : public rclcpp::Node {
   void update_can_data_timer_callback();
 
 #if !defined(__aarch64__) || defined(__APPLE__)
-  /// @brief Timed callback function for periodically copying can_rx_ to data_
-  /// for screen to display.
+  /// @brief Timed callback function for toggling screen page for testing
+  /// purpose.
   void toggle_screen_timer_callback();
 #endif
 
