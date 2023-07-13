@@ -502,6 +502,7 @@ void Screen::display_driver_information() {
   }
 
   // speed text
+  ImVec4 speed_text_color = {1.0f, 1.0f, 1.0f, 1.0f};
   ImGui::PushFont(speed_font_);
   char buffer[4];
   snprintf(buffer, sizeof(buffer), "%.0f", data_->speed);
@@ -510,7 +511,7 @@ void Screen::display_driver_information() {
   ImVec2 speed_text_size = ImGui::CalcTextSize(buffer);
   double speed_text_x = (308 - speed_text_size.x) / 2.0f;
   ImGui::SetCursorPos(ImVec2(245 + speed_text_x, 240));
-  ImGui::Text("%s", buffer);
+  ImGui::TextColored(speed_text_color, "%s", buffer);
   ImGui::PopFont();
 
   // speed unit
@@ -520,7 +521,7 @@ void Screen::display_driver_information() {
   // calculate the position of the text
   double speed_unit_text_x = (70 - textSize_Unit.x) / 2.0f;
   ImGui::SetCursorPos(ImVec2(501 + speed_unit_text_x, 419));
-  ImGui::Text(" km/h");
+  ImGui::TextColored(speed_text_color, " km/h");
   ImGui::PopFont();
 
   // imu

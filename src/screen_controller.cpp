@@ -28,86 +28,13 @@
 // nturt include
 #include "nturt_can_config.h"
 #include "nturt_can_config/can_callback_register.hpp"
+#include "nturt_can_config/can_timeout_monitor.hpp"
 #include "nturt_can_config_logger-binutil.h"
 #include "nturt_ros_interface/msg/system_stats.hpp"
 #include "nturt_screen_controller/screen.hpp"
 #include "nturt_screen_controller/screen_data.hpp"
 
 using namespace std::chrono_literals;
-
-/* Private macro -------------------------------------------------------------*/
-/* can frame index for rx receive timeout error ------------------------------*/
-#define NUM_FRAME_FRONT 5
-#define NUM_FRAME_REAR 3
-#define NUM_FRAME_BMS 1
-#define NUM_FRAME_INVERTER 5
-#define NUM_FRAME \
-  (NUM_FRAME_FRONT + NUM_FRAME_REAR + NUM_FRAME_BMS + NUM_FRAME_INVERTER)
-
-// front box frame
-#define FRAME_FRONT_BASE 0UL
-#define FRAME_FRONT(X) (1UL << (FRAME_FRONT_BASE + X))
-#define FRAME_FRONT_MASK ((1UL << (FRAME_FRONT_BASE + NUM_FRAME_FRONT)) - 1UL)
-
-#define VCU_Status_INDEX FRAME_FRONT(0)
-#define INV_Command_Message_INDEX FRAME_FRONT(1)
-#define FRONT_SENSOR_1_INDEX FRAME_FRONT(2)
-#define FRONT_SENSOR_2_INDEX FRAME_FRONT(3)
-#define FRONT_SENSOR_3_INDEX FRAME_FRONT(4)
-
-// rear box frame
-#define FRAME_REAR_BASE (FRAME_FRONT_BASE + NUM_FRAME_FRONT)
-#define FRAME_REAR(X) (1UL << (FRAME_REAR_BASE + X))
-#define FRAME_REAR_MASK                                  \
-  (((1UL << (FRAME_REAR_BASE + NUM_FRAME_REAR)) - 1UL) - \
-   ((1UL << FRAME_REAR_BASE) - 1UL))
-
-#define REAR_SENSOR_Status_INDEX FRAME_REAR(0)
-#define REAR_SENSOR_1_INDEX FRAME_REAR(1)
-#define REAR_SENSOR_2_INDEX FRAME_REAR(2)
-
-// bms frame
-#define FRAME_BMS_BASE (FRAME_REAR_BASE + NUM_FRAME_REAR)
-#define FRAME_BMS(X) (1UL << (FRAME_BMS_BASE + X))
-#define FRAME_BMS_MASK                                 \
-  (((1UL << (FRAME_BMS_BASE + NUM_FRAME_BMS)) - 1UL) - \
-   ((1UL << FRAME_BMS_BASE) - 1UL))
-
-#define BMS_Cell_Stats_INDEX FRAME_BMS(0)
-
-// inverter frame
-#define FRAME_INVERTER_BASE (FRAME_BMS_BASE + NUM_FRAME_BMS)
-#define FRAME_INVERTER(X) (1UL << (FRAME_INVERTER_BASE + X))
-#define FRAME_INVERTER_MASK                                      \
-  (((1UL << (FRAME_INVERTER_BASE + NUM_FRAME_INVERTER)) - 1UL) - \
-   ((1UL << FRAME_INVERTER_BASE) - 1UL))
-
-#define INV_Fast_Info_INDEX FRAME_INVERTER(0)
-#define INV_Fault_Codes_INDEX FRAME_INVERTER(1)
-#define INV_Internal_States_INDEX FRAME_INVERTER(2)
-#define INV_Temperature_Set_2_INDEX FRAME_INVERTER(3)
-#define INV_Temperature_Set_3_INDEX FRAME_INVERTER(4)
-
-/// @brief Map to convert can id to frame name.
-static const std::map<uint32_t, uint32_t> can_id_to_frame_name = {
-    {VCU_Status_CANID, VCU_Status_INDEX},
-    {INV_Command_Message_CANID, INV_Command_Message_INDEX},
-    {FRONT_SENSOR_1_CANID, FRONT_SENSOR_1_INDEX},
-    {FRONT_SENSOR_2_CANID, FRONT_SENSOR_2_INDEX},
-    {FRONT_SENSOR_3_CANID, FRONT_SENSOR_3_INDEX},
-
-    {REAR_SENSOR_Status_CANID, REAR_SENSOR_Status_INDEX},
-    {REAR_SENSOR_1_CANID, REAR_SENSOR_1_INDEX},
-    {REAR_SENSOR_2_CANID, REAR_SENSOR_2_INDEX},
-
-    {BMS_Cell_Stats_CANID, BMS_Cell_Stats_INDEX},
-
-    {INV_Fast_Info_CANID, INV_Fast_Info_INDEX},
-    {INV_Fault_Codes_CANID, INV_Fault_Codes_INDEX},
-    {INV_Internal_States_CANID, INV_Internal_States_INDEX},
-    {INV_Temperature_Set_2_CANID, INV_Temperature_Set_2_INDEX},
-    {INV_Temperature_Set_3_CANID, INV_Temperature_Set_3_INDEX},
-};
 
 ScreenController::ScreenController(rclcpp::NodeOptions options)
     : Node("nturt_screen_controller_node", options),
@@ -122,7 +49,7 @@ ScreenController::ScreenController(rclcpp::NodeOptions options)
           std::bind(&ScreenController::onGpsVel, this, std::placeholders::_1))),
       system_stats_sub_(
           this->create_subscription<nturt_ros_interface::msg::SystemStats>(
-              "system_stats", 10,
+              "/system_stats", 10,
               std::bind(&ScreenController::onSystemStats, this,
                         std::placeholders::_1))),
       check_can_timer_(this->create_wall_timer(
@@ -162,12 +89,6 @@ ScreenController::ScreenController(rclcpp::NodeOptions options)
 void ScreenController::register_can_callback() {
   CanCallbackRegieter::register_callback(
       static_cast<get_tick_t>(std::bind(&ScreenController::get_tick, this)));
-  CanCallbackRegieter::register_callback(static_cast<fmon_mono_t>(
-      std::bind(&ScreenController::fmon_mono, this, std::placeholders::_1,
-                std::placeholders::_2)));
-  CanCallbackRegieter::register_callback(static_cast<tout_mono_t>(
-      std::bind(&ScreenController::tout_mono, this, std::placeholders::_1,
-                std::placeholders::_2, std::placeholders::_3)));
 }
 
 void ScreenController::onCan(const std::shared_ptr<can_msgs::msg::Frame> msg) {
@@ -362,17 +283,20 @@ void ScreenController::update_can_data_timer_callback() {
 
   // can rx timeout
   data_->timeout_frame_name.clear();
-  if (can_rx_error_ & FRAME_FRONT_MASK) {
+  if (can_timeout_monior::can_rx_error & FRAME_FRONT_MASK) {
     data_->timeout_frame_name.push_back("Front Box");
   }
-  if (can_rx_error_ & FRAME_REAR_MASK) {
+  if (can_timeout_monior::can_rx_error & FRAME_REAR_MASK) {
     data_->timeout_frame_name.push_back("Rear Box");
   }
-  if (can_rx_error_ & FRAME_BMS_MASK) {
+  if (can_timeout_monior::can_rx_error & FRAME_BMS_MASK) {
     data_->timeout_frame_name.push_back("BMS");
   }
-  if (can_rx_error_ & FRAME_INVERTER_MASK) {
+  if (can_timeout_monior::can_rx_error & FRAME_INVERTER_MASK) {
     data_->timeout_frame_name.push_back("Inverter");
+  }
+  if (can_timeout_monior::can_rx_error & FRAME_IMU_MASK) {
+    data_->timeout_frame_name.push_back("IMU");
   }
 }
 
@@ -394,29 +318,6 @@ void ScreenController::screen_thread_task() {
 
 uint32_t ScreenController::get_tick() {
   return static_cast<uint32_t>(now().nanoseconds() / 1000000);
-}
-
-void ScreenController::fmon_mono(FrameMonitor_t* mon, uint32_t msgid) {
-  if (mon->cycle_error) {
-    mon->cycle_error = false;
-
-    if (can_id_to_frame_name.find(msgid) != can_id_to_frame_name.end()) {
-      can_rx_error_ &= ~can_id_to_frame_name.at(msgid);
-    }
-  }
-}
-
-void ScreenController::tout_mono(FrameMonitor_t* mon, uint32_t msgid,
-                                 uint32_t lastcyc) {
-  if (!mon->cycle_error) {
-    mon->cycle_error = true;
-
-    if (can_id_to_frame_name.find(msgid) != can_id_to_frame_name.end()) {
-      can_rx_error_ |= can_id_to_frame_name.at(msgid);
-      RCLCPP_WARN(get_logger(), "receive timeout: %u, last cycle: %u", msgid,
-                  lastcyc);
-    }
-  }
 }
 
 #include "rclcpp_components/register_node_macro.hpp"

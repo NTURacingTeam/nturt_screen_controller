@@ -96,10 +96,6 @@ class ScreenController : public rclcpp::Node {
   /* coder dbc callback function ---------------------------------------------*/
   uint32_t get_tick();
 
-  void fmon_mono(FrameMonitor_t* mon, uint32_t msgid);
-
-  void tout_mono(FrameMonitor_t* mon, uint32_t msgid, uint32_t lastcyc);
-
   /// @brief ROS2 sbscriber to "/from_can_bus", for receiving can signal.
   rclcpp::Subscription<can_msgs::msg::Frame>::SharedPtr can_sub_;
 
@@ -138,10 +134,6 @@ class ScreenController : public rclcpp::Node {
 
   /// @brief Struct for storing can frame data.
   nturt_can_config_logger_rx_t can_rx_;
-
-  /// @brief Frame receive timeout error flag, where every bit represent a frame
-  /// error.
-  uint32_t can_rx_error_;
 
   /// @brief 2D array for storing battery cell voltage.
   battery_data_t battery_cell_voltage_;
