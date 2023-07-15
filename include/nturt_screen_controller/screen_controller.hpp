@@ -23,6 +23,7 @@
 
 // nturt include
 #include "nturt_can_config.h"
+#include "nturt_can_config/battery_utils.hpp"
 #include "nturt_can_config_logger-binutil.h"
 #include "nturt_ros_interface/msg/system_stats.hpp"
 #include "nturt_screen_controller/screen.hpp"
@@ -35,20 +36,10 @@
 #define WHEEL_SPEED_TO_VEHICLE_SPPED_RATIO 0.0957F
 #define MOTOR_SPEED_TO_VEHICLE_SPEED_RATIO 0.0223F
 
-#define NUM_BATTERY_SEGMENT 7
-#define NUM_BATTERY_CELL_PER_SEGMENT 12
-#define NUM_BATTERY_CELL_PER_FRAME 3
-
 #define FRONT_BOX_ERROR_MASK 0xFFFFFFFBUL
 #define REAR_BOX_ERROR_MASK 0xFFFFFFFBUL
 #define INVERTER_POST_ERROR_MASK 0xFFFFFFFFUL
 #define INVERTER_RUN_ERROR_MASK 0xFFFFFFFFUL
-
-/* typedef -------------------------------------------------------------------*/
-// battery data
-typedef std::array<std::array<double, NUM_BATTERY_CELL_PER_SEGMENT>,
-                   NUM_BATTERY_SEGMENT>
-    battery_data_t;
 
 /**
  * @author QuantumSpawner jet22854111@gmail.com
@@ -135,11 +126,8 @@ class ScreenController : public rclcpp::Node {
   /// @brief Struct for storing can frame data.
   nturt_can_config_logger_rx_t can_rx_;
 
-  /// @brief 2D array for storing battery cell voltage.
-  battery_data_t battery_cell_voltage_;
-
-  /// @brief 2D array for storing battery cell temperature.
-  battery_data_t battery_cell_temperature_;
+  /// @brief Struct for storing battery data.
+  BatteryData battery_data_;
 };
 
 #endif  // SCREEN_CONTROLLER_HPP

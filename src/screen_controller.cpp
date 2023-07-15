@@ -27,6 +27,7 @@
 
 // nturt include
 #include "nturt_can_config.h"
+#include "nturt_can_config/battery_utils.hpp"
 #include "nturt_can_config/can_callback_register.hpp"
 #include "nturt_can_config/can_timeout_monitor.hpp"
 #include "nturt_can_config_logger-binutil.h"
@@ -96,24 +97,7 @@ void ScreenController::onCan(const std::shared_ptr<can_msgs::msg::Frame> msg) {
                                                 msg->id, msg->dlc);
 
   if (id == BMS_Cell_Stats_CANID) {
-    BMS_Cell_Stats_t* bms_cell_stats = &can_rx_.BMS_Cell_Stats;
-    int segment_index = bms_cell_stats->BMS_Segment_Index,
-        cell_index =
-            NUM_BATTERY_CELL_PER_FRAME * bms_cell_stats->BMS_Cell_Index;
-
-    battery_cell_voltage_[segment_index][cell_index] =
-        bms_cell_stats->BMS_Cell_Voltage_1_phys;
-    battery_cell_voltage_[segment_index][cell_index + 1] =
-        bms_cell_stats->BMS_Cell_Voltage_2_phys;
-    battery_cell_voltage_[segment_index][cell_index + 2] =
-        bms_cell_stats->BMS_Cell_Voltage_3_phys;
-
-    battery_cell_temperature_[segment_index][cell_index] =
-        bms_cell_stats->BMS_Cell_Temperature_1_phys;
-    battery_cell_temperature_[segment_index][cell_index + 1] =
-        bms_cell_stats->BMS_Cell_Temperature_2_phys;
-    battery_cell_temperature_[segment_index][cell_index + 2] =
-        bms_cell_stats->BMS_Cell_Temperature_3_phys;
+    battery_data_.update(&can_rx_.BMS_Cell_Stats);
   }
 }
 
@@ -256,12 +240,11 @@ void ScreenController::update_can_data_timer_callback() {
   data_->imu_quaternion[3] = can_rx_.IMU_Quaternion.IMU_Quaternion_Z_phys;
 
   // battery
-  data_->battery_life = 0.5;
-  data_->battery_temperature = *std ::max_element(
-      &battery_cell_temperature_[0][0],
-      &battery_cell_temperature_[NUM_BATTERY_SEGMENT - 1]
-                                [NUM_BATTERY_CELL_PER_SEGMENT - 1] +
-          1);
+  double voltage = battery_data_.average_voltage();
+  double current = can_rx_.INV_Current_Info.INV_DC_Bus_Current_phys;
+  data_->battery_life = state_of_charge(voltage, current);
+
+  data_->battery_temperature = battery_data_.maximum_temperature();
 
   // motor
   data_->motor_temperature = can_rx_.INV_Temperature_Set_3.INV_Motor_Temp_phys;
