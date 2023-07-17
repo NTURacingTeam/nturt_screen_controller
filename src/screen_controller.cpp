@@ -192,9 +192,9 @@ void ScreenController::update_can_data_timer_callback() {
   // error code
   data_->error_code[0] = can_rx_.VCU_Status.VCU_Error_Code;
   data_->error_code[1] = can_rx_.REAR_SENSOR_Status.REAR_SENSOR_Error_Code;
-  data_->error_code[2] = (can_rx_.INV_Fault_Codes.INV_Post_Fault_Hi >> 16) |
+  data_->error_code[2] = (can_rx_.INV_Fault_Codes.INV_Post_Fault_Hi << 16) |
                          can_rx_.INV_Fault_Codes.INV_Post_Fault_Lo;
-  data_->error_code[3] = (can_rx_.INV_Fault_Codes.INV_Run_Fault_Hi >> 16) |
+  data_->error_code[3] = (can_rx_.INV_Fault_Codes.INV_Run_Fault_Hi << 16) |
                          can_rx_.INV_Fault_Codes.INV_Run_Fault_Lo;
 
   // steer andle
