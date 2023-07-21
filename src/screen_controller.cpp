@@ -129,9 +129,9 @@ void ScreenController::onSystemStats(
     data_->wifi_strength = "N/A";
   } else {
     data_->wifi_ssid = msg->wifi_ssid;
-    if (msg->wifi_strength > -60) {
+    if (msg->wifi_strength > -50) {
       data_->wifi_strength = "Excellent";
-    } else if (msg->wifi_strength > -70) {
+    } else if (msg->wifi_strength > -65) {
       data_->wifi_strength = "Good";
     } else if (msg->wifi_strength > -80) {
       data_->wifi_strength = "Fair";
