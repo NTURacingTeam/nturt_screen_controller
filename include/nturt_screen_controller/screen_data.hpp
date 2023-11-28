@@ -67,6 +67,8 @@ struct ScreenData {
   double disk_usage;
   double swap_usage;
 
+  std::string ping;
+
   std::string wifi_ssid;
   std::string wifi_strength;
 

@@ -683,9 +683,9 @@ void Screen::display_sensor_data() {
   ImGui::SetCursorPos(ImVec2(571, 245));
   ImGui::Text(
       "CPU: %.1f %%\nCPU Temp: %.1f °C\nMemory: %.1f %%\nDisk: %.1f %%\nSwap: "
-      "%.1f %%\nWifi SSID: %s\nWifi Strength: %s",
+      "%.1f %%\nPing: %s\nWifi SSID: %s\nWifi Strength: %s",
       100 * data_->cpu_usage, data_->cpu_temperature, 100 * data_->memory_usage,
-      100 * data_->disk_usage, 100 * data_->swap_usage,
+      100 * data_->disk_usage, 100 * data_->swap_usage, data_->ping.c_str(),
       data_->wifi_ssid.c_str(), data_->wifi_strength.c_str());
 
   // data font

@@ -82,9 +82,8 @@ ScreenController::ScreenController(rclcpp::NodeOptions options)
   data_->error_mask[2] = INVERTER_POST_ERROR_MASK;
   data_->error_mask[3] = INVERTER_RUN_ERROR_MASK;
 
-  // set wifi info
-  data_->wifi_ssid = "Not Connected!";
-  data_->wifi_strength = "N/A";
+  // reserve ping string
+  data_->ping.reserve(20);
 }
 
 void ScreenController::register_can_callback() {
@@ -122,6 +121,13 @@ void ScreenController::onSystemStats(
   data_->memory_usage = msg->memory_usage;
   data_->disk_usage = msg->disk_usage;
   data_->swap_usage = msg->swap_usage;
+
+  // if network not connected
+  if (msg->ping == 0) {
+    data_->ping = "Not Connected!";
+  } else {
+    sprintf(data_->ping.data(), "%g ms", msg->ping);
+  }
 
   // if wifi not connected
   if (msg->wifi_strength == 0) {
